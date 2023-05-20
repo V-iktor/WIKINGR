@@ -6,6 +6,11 @@ public class GameManager : MonoBehaviour
     {
         UserInterface.OnUiEvent += HandleUiEvent;
     }
+    
+    private void OnDisable()
+    {
+        UserInterface.OnUiEvent -= HandleUiEvent;
+    }
 
     void HandleUiEvent(UiEvent type)
     {
