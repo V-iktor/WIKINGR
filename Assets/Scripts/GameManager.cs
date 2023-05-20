@@ -8,7 +8,7 @@ using Unity.Services.Lobbies.Models;
 using Unity.Services.Relay;
 using Unity.Services.Relay.Models;
 using UnityEngine;
-using Random = Unity.Mathematics.Random;
+using Random = System.Random;
 
 public class GameManager : MonoBehaviour
 {
@@ -26,7 +26,9 @@ public class GameManager : MonoBehaviour
 
     async void Start()
     {
-        await UnityServices.InitializeAsync();
+        var random = new Random().Next(1, 1000).ToString();
+        var options = new InitializationOptions().SetProfile(random);
+        await UnityServices.InitializeAsync(options);
     }
 
     static async void HandleUiEvent(UiEvent type)
