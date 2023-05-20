@@ -4,6 +4,7 @@ public enum UiEvent
 {
     Host,
     Join,
+    Start
 }
 public class UserInterface : MonoBehaviour
 {
@@ -18,5 +19,10 @@ public class UserInterface : MonoBehaviour
     public void OnJoin()
     {
         OnUiEvent.Invoke(UiEvent.Join);
+    }
+    
+    public void OnStart()
+    {
+        OnUiEvent.Invoke(UiEvent.Start);
     }
 }

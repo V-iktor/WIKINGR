@@ -36,8 +36,6 @@ public class GameManager : MonoBehaviour
         switch (type)
         {
             case UiEvent.Host:
-                // NetworkManager.Singleton.StartHost();
-
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
                 Debug.Log($"Signed in. Player ID: {AuthenticationService.Instance.PlayerId}");
                 Allocation allocation = await RelayService.Instance.CreateAllocationAsync(4);
@@ -67,6 +65,9 @@ public class GameManager : MonoBehaviour
                 Debug.Log($"Signed in. Player ID: {AuthenticationService.Instance.PlayerId}");
 
                 // NetworkManager.Singleton.StartClient();
+                break;
+            case UiEvent.Start:
+                NetworkManager.Singleton.StartHost();
                 break;
         }
     }
