@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using Newtonsoft.Json;
 using Unity.Netcode;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
@@ -31,25 +34,24 @@ public class GameManager : MonoBehaviour
         await UnityServices.InitializeAsync(options);
     }
 
-    static async void HandleUiEvent(UiEvent type)
+    async void HandleUiEvent(UiEvent type)
     {
         switch (type)
         {
             case UiEvent.Host:
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
                 Debug.Log($"Signed in. Player ID: {AuthenticationService.Instance.PlayerId}");
-                Allocation allocation = await RelayService.Instance.CreateAllocationAsync(4);
+                var allocation = await RelayService.Instance.CreateAllocationAsync(4);
                 Debug.Log($"Host Allocation ID: {allocation.AllocationId}, region: {allocation.Region}");
                 var relayCode = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
                 Debug.Log($"Host - Got join code: {relayCode}");
                 OnUiUpdateJoinCode?.Invoke(relayCode);
-                // Populate the new lobby with some data; use indexes so it's easy to search for
+
                 var lobbyData = new Dictionary<string, DataObject>()
                 {
-                    ["Relay"] = new DataObject(DataObject.VisibilityOptions.Public, relayCode),
+                    ["Relay"] = new(DataObject.VisibilityOptions.Public, relayCode),
                 };
 
-                // Create a new lobby
                 var currentLobby = await LobbyService.Instance.CreateLobbyAsync(
                     lobbyName: relayCode,
                     maxPlayers: 4,
@@ -63,12 +65,37 @@ public class GameManager : MonoBehaviour
             case UiEvent.Join:
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
                 Debug.Log($"Signed in. Player ID: {AuthenticationService.Instance.PlayerId}");
+                var response = await LobbyService.Instance.QueryLobbiesAsync();
 
-                // NetworkManager.Singleton.StartClient();
+                var foundLobbies = response.Results;
+
+                if (foundLobbies.Any()) // Try to join a random lobby if one exists
+                {
+                    Debug.Log("Found lobbies:\n" + JsonConvert.SerializeObject(foundLobbies));
+
+                    var randomLobby = foundLobbies[0];
+
+                    currentLobby = await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId: randomLobby.Id);
+
+                    Debug.Log($"Joined lobby {currentLobby.Name} ({currentLobby.Id})");
+
+                    StartCoroutine(StartClientLoop());
+                }
                 break;
             case UiEvent.Start:
                 NetworkManager.Singleton.StartHost();
                 break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), type, null);
+        }
+    }
+    
+    IEnumerator StartClientLoop()
+    {
+        while(!NetworkManager.Singleton.StartClient())
+        {
+            Debug.Log("Start client attempt...");
+            yield return new WaitForSeconds(1);
         }
     }
 }
