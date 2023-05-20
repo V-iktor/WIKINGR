@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public enum UiEvent
@@ -9,17 +7,16 @@ public enum UiEvent
 }
 public class UserInterface : MonoBehaviour
 {
-    delegate void UiDelegate(UiEvent type);
-
-    private UiDelegate _thisUiDelegate;
+   public  delegate void UiDelegate(UiEvent type);
+   public static event UiDelegate OnUiEvent;
 
     public void OnHost()
     {
-        _thisUiDelegate.Invoke(UiEvent.Host);
+        OnUiEvent.Invoke(UiEvent.Host);
     }
     
     public void OnJoin()
     {
-        _thisUiDelegate.Invoke(UiEvent.Host);
+        OnUiEvent.Invoke(UiEvent.Join);
     }
 }
