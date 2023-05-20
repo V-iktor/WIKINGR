@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Unity.Netcode;
 using Unity.Services.Authentication;
@@ -15,8 +16,12 @@ using Random = System.Random;
 
 public class GameManager : MonoBehaviour
 {
+    private Lobby currentLobby;
     public  delegate void UiUpdateJoinCode(string joinCode);
-    public static event UiUpdateJoinCode OnUiUpdateJoinCode;
+    public static event UiUpdateJoinCode OnUiUpdateJoinCode;    
+    public  delegate void UiUpdatePlayerList(string joinCode);
+    public static event UiUpdatePlayerList OnUiUpdatePlayerList;
+    
     private void OnEnable()
     {
         UserInterface.OnUiEvent += HandleUiEvent;
@@ -52,7 +57,7 @@ public class GameManager : MonoBehaviour
                     ["Relay"] = new(DataObject.VisibilityOptions.Public, relayCode),
                 };
 
-                var currentLobby = await LobbyService.Instance.CreateLobbyAsync(
+                currentLobby = await LobbyService.Instance.CreateLobbyAsync(
                     lobbyName: relayCode,
                     maxPlayers: 4,
                     options: new CreateLobbyOptions()
@@ -61,6 +66,8 @@ public class GameManager : MonoBehaviour
                     });
 
                 Debug.Log($"Created new lobby {currentLobby.Name} ({currentLobby.Id})");
+                StartCoroutine(RefreshLobbyLoop());
+
                 break;
             case UiEvent.Join:
                 await AuthenticationService.Instance.SignInAnonymouslyAsync();
@@ -80,6 +87,7 @@ public class GameManager : MonoBehaviour
                     Debug.Log($"Joined lobby {currentLobby.Name} ({currentLobby.Id})");
 
                     StartCoroutine(StartClientLoop());
+                    StartCoroutine(RefreshLobbyLoop());
                 }
                 break;
             case UiEvent.Start:
@@ -94,8 +102,30 @@ public class GameManager : MonoBehaviour
     {
         while(!NetworkManager.Singleton.StartClient())
         {
-            Debug.Log("Start client attempt...");
-            yield return new WaitForSeconds(1);
+            yield return new WaitForSeconds(2);
         }
+    }
+    
+    IEnumerator RefreshLobbyLoop()
+    {
+        var delay = new WaitForSecondsRealtime(2);
+        while (currentLobby != null)
+        {
+            // Run task and wait for it to complete
+            var t = Task.Run(async () => await Lobbies.Instance.GetLobbyAsync(currentLobby.Id));
+            yield return new WaitUntil(() => t.IsCompleted);
+ 
+            // Task is complete, get the result
+            currentLobby = t.Result;
+            UpdateUi();
+            yield return delay;
+        }
+    }
+
+    private void UpdateUi()
+    {
+        var playersListText = "";
+        currentLobby.Players.ForEach(p => { playersListText += p.Id.ToString() + "<br>"; });
+        OnUiUpdatePlayerList?.Invoke(playersListText);
     }
 }
