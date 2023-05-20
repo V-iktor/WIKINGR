@@ -7,14 +7,14 @@ public class UiJoinCode : MonoBehaviour
 {
     private void OnEnable()
     {
-        GameManager.OnUpdateJoinCode += HandleUpdateJoinCode;
+        GameManager.OnUiUpdateJoinCode += HandleUiUpdateJoinCode;
     }
     private void OnDisable()
     {
-        GameManager.OnUpdateJoinCode -= HandleUpdateJoinCode;
+        GameManager.OnUiUpdateJoinCode -= HandleUiUpdateJoinCode;
     }
 
-    void HandleUpdateJoinCode(string code)
+    void HandleUiUpdateJoinCode(string code)
     {
         GetComponent<TextMeshProUGUI>().text = code;
     }
