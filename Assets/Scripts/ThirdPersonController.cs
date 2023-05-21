@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections;
 using Cinemachine;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -104,16 +106,28 @@ namespace StarterAssets
 #if ENABLE_INPUT_SYSTEM
         private PlayerInput _playerInput;
 #endif
-        private Animator _animator;
-        private CharacterController _controller;
-        private StarterAssetsInputs _input;
-        private GameObject _mainCamera;
+        public Animator _animator;
+        public CharacterController _controller;
+        public StarterAssetsInputs _input;
+        public GameObject _mainCamera;
 
         private const float _threshold = 0.01f;
 
         private bool _hasAnimator;
         private static readonly int _animIDStrafe = Animator.StringToHash("Strafe");
 
+        void OnEnable()
+        {
+            Debug.Log("OnEnable called");
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        private void OnSceneLoaded(Scene s, LoadSceneMode l)
+        {
+            Debug.Log("Scene loaded");
+            InitializeHostAndClients();
+        }
+        
         private bool IsCurrentDeviceMouse
         {
             get
@@ -126,27 +140,11 @@ namespace StarterAssets
             }
         }
 
-
-        // private void Awake()
-        // {
-        //     // get a reference to our main camera
-        //     if (_mainCamera == null)
-        //     {
-        //         _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
-        //     }
-        // }
-
-        public override void OnNetworkSpawn()
+        void InitializeHostAndClients()
         {
-            if (!IsOwner) return;
             _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
             GameObject.FindGameObjectWithTag("FollowCamera").gameObject
                 .GetComponent<CinemachineVirtualCamera>().Follow = CinemachineCameraTarget.transform;
-        }
-
-        private void Start()
-        {
-            if (!IsOwner) return;
 
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
 
@@ -165,8 +163,22 @@ namespace StarterAssets
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
+            
+            // This is a hack for Host not being able to
+            // initialize when Scene changes
+            // Probably because
+            if (_mainCamera == null)
+            {
+                StartCoroutine(InitializeLoop());
+            }
         }
-
+        
+        public override void OnNetworkSpawn()
+        {
+            if (!IsOwner) return;
+            InitializeHostAndClients();
+        }
+        
         private void Update()
         {
             if (!IsOwner) return;
@@ -452,6 +464,18 @@ namespace StarterAssets
             {
                 AudioSource.PlayClipAtPoint(LandingAudioClip, transform.TransformPoint(_controller.center),
                     FootstepAudioVolume);
+            }
+        }
+        
+        IEnumerator InitializeLoop()
+        {
+            var delay = new WaitForSecondsRealtime(1);
+            while (true)
+            {
+                if (_mainCamera) yield return null;
+                Debug.Log("No camera");
+                InitializeHostAndClients();
+                yield return delay;
             }
         }
     }
